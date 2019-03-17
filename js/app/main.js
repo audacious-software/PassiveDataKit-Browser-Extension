@@ -18,7 +18,7 @@ requirejs.config({
 		pdk: "../../js/lib/passive-data-kit",
 		bootstrap: "../../vendor/js/bootstrap.bundle",
 		moment: "../../vendor/js/moment.min",
-		material: "https://unpkg.com/material-components-web@latest/dist/material-components-web.min"
+		material: "../../vendor/js/material-components-web.min"
 	}
 });
 
