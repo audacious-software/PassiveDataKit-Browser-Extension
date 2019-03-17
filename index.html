@@ -1,0 +1,158 @@
+﻿<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		<link rel="icon" href="images/icon-48.png">
+		<title>Passive Data Kit</title>
+		<link rel="stylesheet" href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css">
+		<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+		
+		<style>
+			:root {
+				--mdc-theme-primary: #263238;
+			}
+		</style>
+	</head>
+	<body class="mdc-typography" style="margin: 0;">
+		<header class="mdc-top-app-bar">
+			<div class="mdc-top-app-bar__row">
+				<section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start">
+					<span class="mdc-top-app-bar__title" id="extensionTitle">Passive Data Kit</span>
+				</section>
+				<section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" role="toolbar">
+					<a href="#" class="material-icons mdc-top-app-bar__action-item" aria-label="Close" id="actionCloseSettings" style="display: none;">close</a>
+					<a href="#" class="material-icons mdc-top-app-bar__action-item" aria-label="Open Review" id="actionOpenReview" style="display: none;">assignment_turned_in</a>
+					<a href="#" class="material-icons mdc-top-app-bar__action-item" aria-label="Open Settings" id="actionOpenSettings" style="display: none;">settings</a>
+				</section>
+			</div>
+		</header>
+		<div class="mdc-top-app-bar--fixed-adjust">
+    		<div id="loginScreen" style="display: none;">
+				<div class="mdc-layout-grid">
+					<div class="mdc-layout-grid__inner">
+						<div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
+							<p class="mdc-typography--body1">Please enter your assigned identifier to get started:</p>
+				
+							<div class="mdc-text-field mdc-text-field--outlined" style="width: 100%;">
+								<input type="text" id="identifier" class="mdc-text-field__input">
+								<div class="mdc-notched-outline">
+									<div class="mdc-notched-outline__leading"></div>
+										<div class="mdc-notched-outline__notch">
+										<label for="tf-outlined" class="mdc-floating-label">Identifier</label>
+									</div>
+									<div class="mdc-notched-outline__trailing"></div>
+								</div>
+							</div>
+				
+							<div style="margin-top: 32px; margin-bottom: 16px; text-align: right;">
+								<button class="mdc-button mdc-button--raised" id="submitIdentifier">
+									<i class="material-icons mdc-button__icon" aria-hidden="true">arrow_forward</i>
+									<span class="mdc-button__label">Continue</span>
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+    		<div id="detailsScreen" style="display: none;">
+				<div class="mdc-layout-grid">
+					<div class="mdc-layout-grid__inner">
+						<div class="mdc-layout-grid__cell">
+							<div class="mdc-typography--subtitle2">Identifier</div>
+							<div class="mdc-typography--body1" id="valueIndentifier">Unknown</div>
+						</div>
+						<div class="mdc-layout-grid__cell">
+							<div class="mdc-typography--subtitle2">Last Upload</div>
+							<div class="mdc-typography--body1" id="valueLastUpload">Never</div>
+						</div>
+						<div class="mdc-layout-grid__cell">
+							<div class="mdc-typography--subtitle2">Pending Items</div>
+							<div class="mdc-typography--body1" id="valuePendingItems">Unknown</div>
+						</div>
+						<div class="mdc-layout-grid__cell">
+							<div class="mdc-typography--subtitle2">Uploaded Items</div>
+							<div class="mdc-typography--body1" id="valueTotalUploaded">0</div>
+						</div>
+						<div class="mdc-layout-grid__cell  mdc-layout-grid__cell--span-12">
+							<div class="mdc-typography--subtitle2">Current Status</div>
+							<div role="progressbar" class="mdc-linear-progress">
+								<div class="mdc-linear-progress__buffering-dots"></div>
+								<div class="mdc-linear-progress__buffer"></div>
+								<div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
+									<span class="mdc-linear-progress__bar-inner"></span>
+								</div>
+								<div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
+									<span class="mdc-linear-progress__bar-inner"></span>
+								</div>
+							</div>
+							<div class="mdc-typography--caption" id="progressDescription">(Description here)</div>
+						</div>
+						<div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
+							<div style="text-align: right;">
+								<button class="mdc-button mdc-button--raised" id="uploadData">
+									<i class="material-icons mdc-button__icon" aria-hidden="true">cloud_upload</i>
+									<span class="mdc-button__label">Upload</span>
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+    		</div>
+    		<div id="reviewScreen" style="display: none;">
+				<div class="mdc-layout-grid">
+					<div class="mdc-layout-grid__inner">
+						<div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12 mdc-typography--body2">
+							<p>Coming Soon!</p>
+							
+							<p>Will allow users to review pending data and remove any items not to be uploaded.</p>
+							<p>Will also allow users to edit and refine bundled content blacklists.</p>
+						</div>
+					</div>
+				</div>
+			</div>
+    		<div id="settingsScreen" style="display: none;">
+				<div class="mdc-layout-grid">
+					<div class="mdc-layout-grid__inner">
+						<div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-12">
+							<div class="mdc-typography--subtitle2">About This Extension</div>
+							<div class="mdc-typography--body2" id="valueAboutExtension">-</div>
+						</div>
+						<div class="mdc-layout-grid__cell">
+							<div class="mdc-typography--subtitle2">Upload URL</div>
+							<div class="mdc-typography--body2" id="valueUploadUrl">(TODO)</div>
+						</div>
+						<div class="mdc-layout-grid__cell">
+							<div class="mdc-typography--subtitle2">Reset Data Collection</div>
+							<div class="mdc-typography--body2" id="valueTotalUploaded">Resets the history monitor to retrieve all available data.</div>
+							<div style="text-align: right">
+								<button class="mdc-button" id="resetExtension">
+									<i class="material-icons mdc-button__icon" aria-hidden="true">refresh</i> 
+									<span class="mdc-button__label">Reset</span>
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+    		</div>
+		</div>
+
+		<div class="mdc-dialog" id="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title"	aria-describedby="dialog-content">
+			<div class="mdc-dialog__container">
+				<div class="mdc-dialog__surface">
+					<h2 class="mdc-dialog__title" id="dialog-title">Dialog Title</h2>
+					<div class="mdc-dialog__content" id="dialog-content">
+						Dialog body text goes here.
+					</div>
+					<footer class="mdc-dialog__actions">
+						<button type="button" class="mdc-button mdc-dialog__button" data-mdc-dialog-action="yes">
+							<span class="mdc-button__label">Close</span>
+						</button>
+					</footer>
+				</div>
+			</div>
+			<div class="mdc-dialog__scrim"></div>
+		</div>
+    
+		<script data-main="js/app/main.js" src="vendor/js/require.js"></script>
+	</body>
+</html>
