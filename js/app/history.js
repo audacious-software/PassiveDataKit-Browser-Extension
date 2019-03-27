@@ -7,6 +7,8 @@ define(['pdk', 'app/config'], function (pdk, config) {
     history.pendingHistoryItems = [];
     history.recordingVisits = false;
     history.pendingVisitsList = [];
+    
+    history.patterns = null;
 
     history.updatePendingVisits = function(callback, repeatInteval) {
         window.onbeforeunload = function(event) {
@@ -17,6 +19,17 @@ define(['pdk', 'app/config'], function (pdk, config) {
     
         chrome.storage.local.get({ "pdk-latest-fetch-from-history": 0}, function(result) {
             var since = result["pdk-latest-fetch-from-history"];
+            
+            if (config.onlyNewVisits && since == 0) {
+            	since = (new Date()).getTime();
+
+				chrome.storage.local.set({
+					"pdk-latest-fetch-from-history": since 
+				}, function(result) {
+
+				});
+            }
+            
             var lastVisited = since;
             
             var query = {
@@ -121,31 +134,55 @@ define(['pdk', 'app/config'], function (pdk, config) {
     };
     
     history.queueVisit = function(historyItem, visit) {
-        var visitRecord = {};
-        
-        visitRecord["visitTime"] = visit.visitTime;
-        visitRecord["transition"] = visit.transition;
-        visitRecord["referringVisitId"] = visit.referringVisitId;
-        visitRecord["transmitted"] = 0;
-        visitRecord["title"] = historyItem.title;
-        visitRecord["url"] = historyItem.url;
-
-        visitRecord["visitId"] = visit.visitId;
-                
-        var url = new URL(historyItem.url);
-        
-        visitRecord["protocol"] = url.protocol;
-        visitRecord["host"] = url.hostname;
-        
-        history.pendingVisitsList.push(visitRecord)
-        
-        if (history.recordingVisits == false) {
-            history.recordingVisits = true;
-            
-            history.recordLatestVisit();
-        }
-        
-        history.pendingVisits += 1;
+    	if (history.patterns == null) {
+			history.fetchPatterns(function(patterns) {
+				history.patterns = [];
+				
+				for (var i = 0; i < patterns.length; i++) {
+					history.patterns.push(patterns[i]["pattern"])
+				}
+				
+				history.queueVisit(historyItem, visit);
+			});
+    	} else {
+			var visitRecord = {};
+		
+			visitRecord["visitTime"] = visit.visitTime;
+			visitRecord["transition"] = visit.transition;
+			visitRecord["referringVisitId"] = visit.referringVisitId;
+			visitRecord["transmitted"] = 0;
+			visitRecord["title"] = historyItem.title;
+			visitRecord["url"] = historyItem.url;
+			
+			var blacklisted = false;
+			
+			for (var i = 0; i < history.patterns.length; i++) {
+				if (historyItem.url.toLowerCase().includes(history.patterns[i].toLowerCase())) {
+					blacklisted = true;
+				}
+			}
+			
+			if (blacklisted) {
+				console.log("BLACKLISTED: " + historyItem.url);
+			} else {
+				visitRecord["visitId"] = visit.visitId;
+				
+				var url = new URL(historyItem.url);
+		
+				visitRecord["protocol"] = url.protocol;
+				visitRecord["host"] = url.hostname;
+		
+				history.pendingVisitsList.push(visitRecord)
+		
+				if (history.recordingVisits == false) {
+					history.recordingVisits = true;
+			
+					history.recordLatestVisit();
+				}
+		
+				history.pendingVisits += 1;
+			}
+		}
     }
     
     history.recordLatestVisit = function() {
@@ -196,7 +233,7 @@ define(['pdk', 'app/config'], function (pdk, config) {
             return;
         }
         
-        const VISITS_VERSION = 1;
+        const VISITS_VERSION = 2;
         
         var request = window.indexedDB.open('history', VISITS_VERSION);
         
@@ -220,9 +257,81 @@ define(['pdk', 'app/config'], function (pdk, config) {
                     visits.createIndex('transition', 'transition', { unique: false });
                     visits.createIndex('domain', 'domain', { unique: false });
                     visits.createIndex('transmitted', 'transmitted', { unique: false });
+                    visits.createIndex('url', 'url', { unique: false });
+
+                    var blacklist = history.db.createObjectStore('blacklist', { keyPath: 'pattern' });
             }
         };
     };
+    
+    history.search = function(query, limit, onComplete) {
+		history.openDatabase(function(db) {
+			var index = db.transaction(['visits'], 'readonly')
+				.objectStore('visits')
+				.index("transmitted");
+			
+			var request = index.getAll(0);
+			
+			query = query.toLowerCase();
+			
+			request.onsuccess = function() {
+				var pendingItems = request.result;
+				
+				var matches = [];
+				
+				for (var i = 0; i < pendingItems.length && matches.length < limit; i++) {
+					if (pendingItems[i]['url'].toLowerCase().includes(query) || pendingItems[i]['title'].toLowerCase().includes(query)) {
+						matches.push(pendingItems[i])
+					}
+				}
+				
+				onComplete(matches);
+			};
+
+			request.onerror = function (event) {
+				console.log("ERROR 1");
+			};
+		});
+    }
+
+    history.deleteVisits = function(url, onComplete) {
+		history.openDatabase(function(db) {
+			var store = db.transaction(['visits'], 'readwrite')
+				.objectStore('visits');
+				
+			var index = store.index("transmitted");
+			
+			var request = index.getAll(0);
+			
+			request.onsuccess = function() {
+				var pendingItems = request.result;
+				
+				var matches = [];
+				
+				var pendingDeletes = 0;
+				
+				for (var i = 0; i < pendingItems.length; i++) {
+					if (pendingItems[i]['url'] == url) {
+						pendingDeletes += 1;
+						
+						var deleteRequest = store.delete(pendingItems[i]['visitId']);
+						
+						deleteRequest.onsuccess = function(event) {
+							pendingDeletes -= 1;
+
+							if (pendingDeletes == 0) {
+								onComplete();
+							}
+						};
+					}
+				}
+			};
+
+			request.onerror = function (event) {
+				console.log("ERROR 1");
+			};
+		});
+    }
     
     history.resetDataCollection = function(completed) {
         history.openDatabase(function(db) {
@@ -383,6 +492,81 @@ define(['pdk', 'app/config'], function (pdk, config) {
 			}
         });
     };
+    
+    history.addPattern = function(pattern, onComplete) {
+		history.openDatabase(function(db) {
+			var request = db.transaction(['blacklist'], 'readwrite')
+				.objectStore('blacklist')
+				.put({ pattern: pattern });
+
+			request.onsuccess = function (event) {
+				chrome.storage.local.get({ "pdk-identifier": ''}, function(result) {
+					pdk.uploadPoint(config.uploadUrl, result["pdk-identifier"], 'pdk-web-added-blacklist-term', { pattern: pattern }, function() {
+						window.setTimeout(function() {
+							onComplete();					
+						}, 0);
+					});
+				});
+			};
+
+			request.onerror = function (event) {
+				console.log('The data has been written failed');
+				console.log(event);
+
+				window.setTimeout(function() {
+					onComplete();					
+				}, 0);
+			}
+		}, function(error) {
+			if (history.progressListener != null) {
+				history.progressListener('Unable to open database! (Code: 1)', true, 0);
+			}
+		
+			onComplete();					
+		});
+    }
+    
+    history.fetchPatterns = function(onComplete) {
+		history.openDatabase(function(db) {
+			var store = db.transaction(['blacklist'], 'readonly')
+				.objectStore('blacklist')
+			
+			var request = store.getAll();
+			
+			request.onsuccess = function() {
+				var patterns = request.result;
+				
+				onComplete(patterns);
+			};
+
+			request.onerror = function (event) {
+				console.log("ERROR 1");
+			};
+		});
+    }
+
+    history.deletePattern = function(pattern, onComplete) {
+		history.openDatabase(function(db) {
+			var store = db.transaction(['blacklist'], 'readwrite')
+				.objectStore('blacklist');
+				
+			var request = store.delete(pattern);
+			
+			request.onsuccess = function() {
+				chrome.storage.local.get({ "pdk-identifier": ''}, function(result) {
+					pdk.uploadPoint(config.uploadUrl, result["pdk-identifier"], 'pdk-web-deleted-blacklist-term', { pattern: pattern }, function() {
+						window.setTimeout(function() {
+							onComplete();					
+						}, 0);
+					});
+				});
+			};
+
+			request.onerror = function (event) {
+				console.log("ERROR 1");
+			};
+		});
+    }
     
     return history;
 });

@@ -12,6 +12,10 @@ define(function() {
 	
 		for (var i = 0; i < points.length; i++) {
 			var metadata = {};
+			
+			if (points[i]["date"] == undefined) {
+				points[i]["date"] = (new Date()).getTime();
+			}
 	
 			metadata['source'] = userId;
 			metadata['generator'] = userAgent;

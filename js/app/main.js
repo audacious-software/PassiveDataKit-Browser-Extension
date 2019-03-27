@@ -78,6 +78,8 @@ requirejs(["material", "moment", "jquery"], function(mdc, moment) {
 			$("#actionCloseSettings").show();
 		};
 
+		const dialog = new mdc.dialog.MDCDialog(document.querySelector('#dialog'));
+
 		var displayIdentifierUi = function() {
 			$("#loginScreen").show();
 			$("#detailsScreen").hide();
@@ -95,8 +97,6 @@ requirejs(["material", "moment", "jquery"], function(mdc, moment) {
 				identifier = $("#identifier").val();
 			
 				home.validateIdentifier(identifier, function(title, message) {
-					console.log("S: " + title + " -- "  + message);
-				
 					$("#dialog-title").text(title);
 					$("#dialog-content").text(message);
 
@@ -105,8 +105,6 @@ requirejs(["material", "moment", "jquery"], function(mdc, moment) {
 					identifierValidated = true;
 			
 				}, function(title, message) {
-					console.log("E: " + title + " -- "  + message);
-
 					$("#dialog-title").text(title);
 					$("#dialog-content").text(message);
 
@@ -143,14 +141,178 @@ requirejs(["material", "moment", "jquery"], function(mdc, moment) {
 		}
 
 		const actionBar = new mdc.topAppBar.MDCTopAppBar(document.querySelector('.mdc-top-app-bar'));
-		const identifierField = new mdc.textField.MDCTextField(document.querySelector('.mdc-text-field'));
+		const identifierField = new mdc.textField.MDCTextField(document.querySelector('#field_identifier'));
 		const buttonRipple = new mdc.ripple.MDCRipple(document.querySelector('.mdc-button'));
-		const dialog = new mdc.dialog.MDCDialog(document.querySelector('.mdc-dialog'));
 
 		const progressBar = new mdc.linearProgress.MDCLinearProgress(document.querySelector('.mdc-linear-progress'));
 		progressBar.determinate = true;
 		progressBar.progress = 0.66;
 
+		const blacklistField = new mdc.textField.MDCTextField(document.querySelector('#field_blacklist'));
+
+		const helperText = new mdc.textField.MDCTextFieldHelperText(document.querySelector('.mdc-text-field-helper-text'));
+
+		const visitsSearch = new mdc.textField.MDCTextField(document.querySelector('#field_visits_search'));
+
+		const deleteVisitDialog = new mdc.dialog.MDCDialog(document.querySelector('#delete_visit_dialog'));
+		
+		var refreshVisitsView = function() {
+			$('#search_visits').html("sync");
+			
+			history.search($("#field_visits_input").val(), 100, function(matches) {
+				$("#visits_list").html("");
+				
+				if (matches.length > 0) {
+					var items = [];
+
+					$.each(matches, function(i, item) {
+						var liElement = '<li class="mdc-list-item"><span class="mdc-list-item__text"><span class="mdc-list-item__primary-text">';
+						liElement += item["title"];
+						liElement += '</span><span class="mdc-list-item__secondary-text">';
+						liElement += item["host"];
+						liElement += '</span></span><button class="mdc-icon-button material-icons mdc-list-item__meta visit_delete_button" id="visit_' + item["visitId"] + '">clear</button></li>';
+				
+						items.push(liElement);
+					});
+			
+					$('#visits_list').append(items.join(''));
+				} else {
+					$('#visits_list').append('<li class="mdc-list-item"><span class="mdc-list-item__text">No visits found for "' + $("#field_visits_input").val() + '". Please refine your search term.</span></li>');
+				}
+				
+				$(".visit_delete_button").off("click");
+				
+				$(".visit_delete_button").click(function(eventObj) {
+					var visitId = parseInt($(eventObj.target).attr("id").replace("visit_", ""));
+
+					$.each(matches, function(i, item) {
+						if (item["visitId"] == visitId) {
+							var title = "Delete Visits?";
+							var message = "Do you want to delete all visits to this page?<br /><br />" + item["title"] + "<br /><em>" + item["host"] + "</em>";
+
+							$("#delete-visit-dialog-title").text(title);
+							$("#delete-visit-dialog-content").html(message);
+
+							deleteVisitDialog.open();
+
+							deleteVisitDialog.listen('MDCDialog:closed', function(event) {
+								if (event.detail["action"] == "delete") {
+									$('#search_visits').html("sync");
+								
+									history.deleteVisits(item["url"], function() {
+										refreshVisitsView();
+									});
+								}
+							});
+						}
+					});
+				})
+
+				$('#search_visits').html("search");
+			});
+		};
+		
+		$('#field_visits_input').keypress(function (e) {
+			var key = e.which;
+
+			if(key == 13) {  // the enter key code
+				refreshVisitsView();
+				return false;  
+			}
+		});   
+
+		const deletePatternDialog = new mdc.dialog.MDCDialog(document.querySelector('#delete_pattern_dialog'));
+
+		var refreshPatternsView = function() {
+			$('#add_blacklist').html("sync");
+			
+			history.fetchPatterns(function(patterns) {
+				$("#patterns_list").html("");
+				
+				if (patterns.length > 0) {
+					var items = [];
+
+					$.each(patterns, function(i, item) {
+						var liElement = '<li class="mdc-list-item"><span class="mdc-list-item__text"><em>';
+						liElement += item["pattern"];
+						liElement += '</em></span><button class="mdc-icon-button material-icons mdc-list-item__meta pattern_delete_button" id="pattern_' + i + '">clear</button></li>';
+				
+						items.push(liElement);
+					});
+			
+					$('#patterns_list').append(items.join(''));
+				} else {
+					$('#patterns_list').append('<li class="mdc-list-item"><span class="mdc-list-item__text"><em>No blacklist patterns saved.</span></li>');
+				}
+				
+				$(".pattern_delete_button").off("click");
+				
+				$(".pattern_delete_button").click(function(eventObj) {
+					var index = parseInt($(eventObj.target).attr("id").replace("pattern_", ""));
+					
+					var pattern = patterns[index];
+
+					var title = "Delete Pattern?";
+					var message = "Do you want to remove the pattern \"" + pattern["pattern"] + "\"?";
+
+					$("#delete-pattern-dialog-title").text(title);
+					$("#delete-pattern-dialog-content").html(message);
+
+					deletePatternDialog.open();
+
+					deletePatternDialog.listen('MDCDialog:closed', function(event) {
+						if (event.detail["action"] == "delete") {
+							$('#add_blacklist').html("sync");
+							
+							history.deletePattern(pattern['pattern'], function() {
+								refreshPatternsView();
+							});
+						}
+					});
+				})
+
+				$('#add_blacklist').html("add_circle");
+			});
+		};
+		
+		refreshPatternsView();
+		
+		const addBlacklistIcon = new mdc.textField.MDCTextFieldIcon(document.querySelector('#add_blacklist'));
+		const searchVisitsIcon = new mdc.textField.MDCTextFieldIcon(document.querySelector('#search_visits'));
+		
+		$('#search_visits').click(function(eventObj) {
+			eventObj.preventDefault();
+			
+			refreshVisitsView();
+		});
+
+		$('#add_blacklist').click(function(eventObj) {
+			eventObj.preventDefault();
+			
+			var pattern = $("#field_blacklist_input").val().trim().toLowerCase();
+			
+			if (pattern.length > 0) {
+				console.log("add pattern: " + pattern);
+				
+			    history.addPattern(pattern, function() {
+			    	refreshPatternsView();
+			    	
+			    	$("#field_blacklist_input").val("");
+			    });
+			}
+		});
+
+		$('#field_blacklist_input').keypress(function (e) {
+			var key = e.which;
+
+			if(key == 13) {  // the enter key code
+				$('#add_blacklist').click();
+				return false;  
+			}
+		});
+		
+		$("#blacklist_message").html(config.blacklistMessage);   
+		
 		$("#actionCloseSettings").click(function(eventObj) {
 			eventObj.preventDefault();
 			
@@ -228,8 +390,6 @@ requirejs(["material", "moment", "jquery"], function(mdc, moment) {
 		};
 
 		history.updatePendingVisits(function(pendingCount) {
-			console.log("UPDATE PENDING!");
-			
 			$("#valuePendingItems").text("" + pendingCount);
 			
 			history.fetchUploadedTransmissionsCount(function(uploadedCount) {
@@ -240,5 +400,6 @@ requirejs(["material", "moment", "jquery"], function(mdc, moment) {
 		history.fetchUploadedTransmissionsCount(function(uploadedCount) {
 			$("#valueTotalUploaded").text("" + uploadedCount);
 		});
+		
 	});
 });
